@@ -19,6 +19,12 @@ extern "C" {
 }
 #endif
 
+#if LIGHT_PROVIDER == LIGHT_PROVIDER_SM16726
+extern "C" {
+    #include "libs/pwm.h"
+}
+#endif
+
 // -----------------------------------------------------------------------------
 
 Ticker _light_save_ticker;
@@ -432,6 +438,28 @@ void _lightProviderUpdate() {
         }
         pwm_start();
 
+    #endif
+
+    #if LIGHT_PROVIDER == LIGHT_PROVIDER_SM16726
+        const int clk = LIGHT_PROVIDER_SM16726_CLK;
+        const int dat = LIGHT_PROVIDER_SM16726_DATA;
+        const int bit = MSBFIRST;
+        DEBUG_MSG_P(PSTR("[LIGHT] _lightProviderUpdate() called\n"));
+        //send more than 50 bits of 0s to indicate a frame start
+        for (unsigned char i=0; i < 7; i++) shiftOut(dat,clk,bit,0x00);
+        //send 1s indicate that the next 3 bytes are RGB values
+        shiftOut(dat,clk,bit,0b00000001);
+        //output the first three channels to the SM16726
+        for (unsigned char i=0; i < 3; i++) {
+          shiftOut(dat,clk,bit,_toPWM(i));
+          //shiftOut(dat,clk,bit,_toPWM(_light_channel[i].value, true, false));
+          DEBUG_MSG_P(PSTR("channel %d\n state: %d val: %d\n shad: %d\n cur: %d\n\n"), i, _light_channel[i].state, _light_channel[i].value, _light_channel[i].shadow, _light_channel[i].current);
+        }
+
+        //the SM16726 PWM is limited to 255 but the ESP8266 PWM uses values 0-10,000
+        //so multiply by floor(10,000 / 255) = 39 to remedy this.
+        pwm_set_duty(_toPWM(3) * 39, 0);
+        pwm_start();
     #endif
 
 }
@@ -947,7 +975,7 @@ void _lightInitCommands() {
 
 #endif // TERMINAL_SUPPORT
 
-#if LIGHT_PROVIDER == LIGHT_PROVIDER_DIMMER
+#if (LIGHT_PROVIDER == LIGHT_PROVIDER_DIMMER) || (LIGHT_PROVIDER == LIGHT_PROVIDER_SM16726)
 
 unsigned long getIOMux(unsigned long gpio) {
     unsigned long muxes[16] = {
@@ -997,6 +1025,10 @@ void lightSetup() {
         digitalWrite(LIGHT_ENABLE_PIN, HIGH);
     #endif
 
+    #if RELAY_PROVIDER == RELAY_PROVIDER_NONE
+            _light_state = true;
+    #endif
+
     #if LIGHT_PROVIDER == LIGHT_PROVIDER_MY92XX
 
         _my92xx = new my92xx(MY92XX_MODEL, MY92XX_CHIPS, MY92XX_DI_PIN, MY92XX_DCKI_PIN, MY92XX_COMMAND);
@@ -1004,6 +1036,32 @@ void lightSetup() {
             _light_channel.push_back((channel_t) {0, false, true, 0, 0, 0});
         }
 
+    #endif
+
+    #if LIGHT_PROVIDER == LIGHT_PROVIDER_SM16726
+        //the first three channels are driven by the SM16726 driver
+        for (unsigned char i=0; i<3; i++) {
+              //channel_t is {pin, inverse, state, value, shadow, current}
+            _light_channel.push_back((channel_t) {0, false, true, 0, 0, 0});
+        }
+
+        //the last channel is driven through PWM
+        _light_channel.push_back((channel_t) {LIGHT_CH4_PIN, LIGHT_CH4_INVERSE, true, 0, 0, 0});
+
+        uint32 pwm_duty_init[1];
+        uint32 io_info[1][3];
+
+        pwm_duty_init[0] = 0;
+        io_info[0][0] = getIOMux(_light_channel[3].pin);
+        io_info[0][1] = getIOFunc(_light_channel[3].pin);
+        io_info[0][2] = _light_channel[3].pin;
+
+        pinMode(_light_channel[3].pin, OUTPUT);
+        pinMode(LIGHT_PROVIDER_SM16726_CLK, OUTPUT);
+        pinMode(LIGHT_PROVIDER_SM16726_DATA, OUTPUT);
+
+        pwm_init(LIGHT_MAX_PWM, pwm_duty_init, 1, io_info);
+        pwm_start();
     #endif
 
     #if LIGHT_PROVIDER == LIGHT_PROVIDER_DIMMER

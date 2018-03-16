@@ -614,6 +614,7 @@ PROGMEM const char* const custom_reset_string[] = {
 #define LIGHT_PROVIDER_NONE     0
 #define LIGHT_PROVIDER_MY92XX   1 // works with MY9291 and MY9231
 #define LIGHT_PROVIDER_DIMMER   2
+#define LIGHT_PROVIDER_SM16726  3
 
 // LIGHT_PROVIDER_DIMMER can have from 1 to 5 different channels.
 // They have to be defined for each device in the hardware.h file.
@@ -639,6 +640,10 @@ PROGMEM const char* const custom_reset_string[] = {
 
 #if LIGHT_PROVIDER == LIGHT_PROVIDER_DIMMER
 #define LIGHT_MAX_PWM           10000        // 5000 * 200ns => 1 kHz
+#endif
+
+#if LIGHT_PROVIDER == LIGHT_PROVIDER_SM16726
+#define LIGHT_MAX_PWM           255
 #endif
 
 #endif // LIGHT_MAX_PWM

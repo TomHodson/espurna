@@ -1394,6 +1394,24 @@
     #define LIGHT_ENABLE_PIN    15
 
 // -----------------------------------------------------------------------------
+// E27 RGBW Bulb with TYWE3S ESP8266 module and SM16726 LED driver.
+// https://www.ebay.co.uk/itm/UK-B22-7W-Smart-WiFi-Light-RGB-LED-Bulb-APP-Remote-Control-For-Amazon-Alexa-Echo/253323085887
+// -----------------------------------------------------------------------------
+
+#elif defined(TYWE3S_SM16726_RGBW_BULB)
+
+    // Info
+    #define MANUFACTURER                  "INSMA"
+    #define DEVICE                        "E27"
+    #define LIGHT_PROVIDER                LIGHT_PROVIDER_SM16726
+    #define LIGHT_PROVIDER_SM16726_CLK    4       //Clock pin
+    #define LIGHT_PROVIDER_SM16726_DATA   14      //Data pin
+    #define LIGHT_CH4_PIN                 5       // WHITE LED PWM PIN
+    #define LIGHT_CH4_INVERSE             0
+    #define PWM_CHANNEL_NUM_MAX           1
+
+
+// -----------------------------------------------------------------------------
 // Generic 8CH
 // -----------------------------------------------------------------------------
 
